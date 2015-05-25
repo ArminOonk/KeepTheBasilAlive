@@ -1,6 +1,11 @@
 int OnboardLed = 13;
 int ButtonLed = 3;
 int Button = 2;
+
+int Working = 4;
+int LowSupplies = 9;
+int Thirsty = 6;
+
 // the setup routine runs once when you press reset:
 void setup() 
 {                
@@ -35,6 +40,9 @@ void loop()
     for (int fadeValue = 0 ; fadeValue < COR_LENGTH; fadeValue++) 
     {
       analogWrite(ButtonLed, fadeCor[fadeValue]);
+      analogWrite(Working, fadeCor[fadeValue]);
+      analogWrite(LowSupplies, fadeCor[fadeValue]);
+      analogWrite(Thirsty, fadeCor[fadeValue]);
       delay(40);
     }
   
@@ -43,6 +51,9 @@ void loop()
     for (int fadeValue = COR_LENGTH-1 ; fadeValue >= 0; fadeValue--) 
     {
       analogWrite(ButtonLed, fadeCor[fadeValue]);
+      analogWrite(Working, fadeCor[fadeValue]);
+      analogWrite(LowSupplies, fadeCor[fadeValue]);
+      analogWrite(Thirsty, fadeCor[fadeValue]);
       delay(40);
     }
   }
