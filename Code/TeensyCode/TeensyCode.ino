@@ -16,7 +16,7 @@ bool PumpManual = false;
 
 // Moisture measurement not connected --> >1000
 // Higher is drieer
-int StartPump = 450;
+int StartPump = 300;
 unsigned LastPumpTime = 0;
 
 void PumpOn()
