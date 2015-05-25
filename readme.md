@@ -8,8 +8,7 @@ The electronics and software are straight forward: [Teensy LC](https://www.pjrc.
 
 This is the code and laser cut designs for Keep The Basil Alive.
 
-More information and progress can be found on:
-https://hackaday.io/project/5504-keep-the-basil-alive
+More information and progress can be found on [hackaday.io](https://hackaday.io/project/5504-keep-the-basil-alive)
 
 
 ## Connections
@@ -17,7 +16,7 @@ https://hackaday.io/project/5504-keep-the-basil-alive
 These are the connections with the Teensy LC (NOTE: not everything is wired up at this moment).
 
 Name     	| Pin (Teensy LC) 	| Type
--------------------------------------
+------------|-------------------|------
 Pump     	| 10				| Output
 Button   	| 2					| Input
 Led Button 	| 3					| PWM
@@ -33,3 +32,7 @@ Leak detect		| A4 			| Analog
 
 The code is writen using Arduino with the Teensy LC add-on.
 https://www.pjrc.com/teensy/td_download.html
+
+## Hardware
+[Teensy LC](https://www.pjrc.com/teensy/teensyLC.html)
+[5V peristaltic pump, pumps 23ml/min](http://www.ebay.com/itm/301570784634?_trksid=p2057872.m2749.l2649&ssPageName=STRK%3AMEBIDX%3AIT) 
