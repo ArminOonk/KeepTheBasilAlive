@@ -6,11 +6,14 @@ int Working = 4;
 int LowSupplies = 9;
 int Thirsty = 6;
 
+int Pump = 10;
+
 // the setup routine runs once when you press reset:
 void setup() 
 {                
   // initialize the digital pin as an output.
   pinMode(OnboardLed, OUTPUT);   
+  pinMode(Pump, OUTPUT);
 
   // Button
   pinMode(Button, INPUT_PULLUP);
@@ -35,6 +38,7 @@ void loop()
   
   if (digitalRead(Button))
   {
+    digitalWrite(Pump, LOW);
     // Button Led fading (Show alive)
     digitalWrite(OnboardLed, HIGH);
     for (int fadeValue = 0 ; fadeValue < COR_LENGTH; fadeValue++) 
@@ -62,5 +66,6 @@ void loop()
     // Pumping?
     analogWrite(ButtonLed, fadeCor[COR_LENGTH-1]);
     digitalWrite(OnboardLed, HIGH);
+    digitalWrite(Pump, HIGH);
   }
 }
