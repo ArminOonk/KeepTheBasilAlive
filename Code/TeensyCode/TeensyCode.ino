@@ -8,7 +8,7 @@ int Thirsty = 6;
 
 int PumpPin = 10;
 unsigned PumpTimeout = 60*60*1000; // 1 Hour
-unsigned PumpInitTime = 60*1000;
+unsigned PumpInitTime = 5*60*1000;
 bool FirstPump = true;
 unsigned PumpTime = 20*1000; // Pump for 20 seconds
 bool isPumpOn = false;
@@ -16,7 +16,7 @@ bool PumpManual = false;
 
 // Moisture measurement not connected --> >1000
 // Higher is drieer
-int StartPump = 300;
+int StartPump = 400;
 unsigned LastPumpTime = 0;
 
 void PumpOn()
@@ -40,6 +40,7 @@ void PumpOff()
   isPumpOn = false;
 }
 
+bool isThirsty = false;
 void CheckMoisture()
 {
   int moist = analogRead(A0);
@@ -48,7 +49,8 @@ void CheckMoisture()
   
   if(moist > StartPump)
   {
-    analogWrite(Thirsty, 255);
+    //analogWrite(Thirsty, 255);
+    isThirsty = true;
     // Do not start pumping the first 5 minutes
     if(millis() > PumpInitTime && FirstPump)
     {
@@ -64,7 +66,8 @@ void CheckMoisture()
   }
   else
   {
-    analogWrite(Thirsty, 0);
+    //analogWrite(Thirsty, 0);
+    isThirsty = false;
   }
 }
 
@@ -87,7 +90,7 @@ bool advertise = true;
 // Start Led Button fading
 #define COR_LENGTH 16
 char fadeCor[COR_LENGTH] = {0, 1, 2, 3, 4, 6, 8, 12, 16, 23, 32, 45, 64, 90, 128, 180};
-
+int fadeCnt = 0;
 void loop() 
 { 
   if(millis() > 3000 && advertise)
@@ -100,7 +103,7 @@ void loop()
   {
     CheckMoisture();
     
-    if(isPumpOn && millis() > (LastPumpTime + PumpTime) || PumpManual)
+    if((isPumpOn && (millis() > (LastPumpTime + PumpTime))) || PumpManual)
     {
       PumpOff(); // long enough
       PumpManual = false;
@@ -109,18 +112,34 @@ void loop()
     
     // Button Led fading (Show alive)
     digitalWrite(OnboardLed, HIGH);
-    for (int fadeValue = 0 ; fadeValue < COR_LENGTH; fadeValue++) 
+    if(fadeCnt++%5 == 0)
     {
-      analogWrite(ButtonLed, fadeCor[fadeValue]);
-      delay(40);
+      for (int fadeValue = 0 ; fadeValue < COR_LENGTH; fadeValue++) 
+      {
+        analogWrite(ButtonLed, fadeCor[fadeValue]);
+        if(isThirsty)
+        {
+          analogWrite(Thirsty, fadeCor[fadeValue]);
+        }
+        delay(40);
+      }
+    
+      // fade out from max to min in increments of 5 points:
+      digitalWrite(OnboardLed, LOW);
+      for (int fadeValue = COR_LENGTH-1 ; fadeValue >= 0; fadeValue--) 
+      {
+        analogWrite(ButtonLed, fadeCor[fadeValue]);
+        if(isThirsty)
+        {
+          analogWrite(Thirsty, fadeCor[fadeValue]);
+        }
+        delay(40);
+      }
     }
-  
-    // fade out from max to min in increments of 5 points:
-    digitalWrite(OnboardLed, LOW);
-    for (int fadeValue = COR_LENGTH-1 ; fadeValue >= 0; fadeValue--) 
+    else
     {
-      analogWrite(ButtonLed, fadeCor[fadeValue]);
-      delay(40);
+        // Balance delay
+        delay(40*2*COR_LENGTH);
     }
   }
   else
