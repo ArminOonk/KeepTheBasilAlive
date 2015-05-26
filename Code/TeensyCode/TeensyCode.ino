@@ -112,35 +112,36 @@ void loop()
     
     // Button Led fading (Show alive)
     digitalWrite(OnboardLed, HIGH);
-    if(fadeCnt++%5 == 0)
+    bool showFade = (fadeCnt++%5 == 0);
+
+    for (int fadeValue = 0 ; fadeValue < COR_LENGTH; fadeValue++) 
     {
-      for (int fadeValue = 0 ; fadeValue < COR_LENGTH; fadeValue++) 
+      if(showFade)
       {
         analogWrite(ButtonLed, fadeCor[fadeValue]);
-        if(isThirsty)
-        {
-          analogWrite(Thirsty, fadeCor[fadeValue]);
-        }
-        delay(40);
       }
-    
-      // fade out from max to min in increments of 5 points:
-      digitalWrite(OnboardLed, LOW);
-      for (int fadeValue = COR_LENGTH-1 ; fadeValue >= 0; fadeValue--) 
+      if(isThirsty)
+      {
+        analogWrite(Thirsty, fadeCor[fadeValue]);
+      }
+      delay(40);
+    }
+  
+    // fade out from max to min in increments of 5 points:
+    digitalWrite(OnboardLed, LOW);
+    for (int fadeValue = COR_LENGTH-1 ; fadeValue >= 0; fadeValue--) 
+    {
+      if(showFade)
       {
         analogWrite(ButtonLed, fadeCor[fadeValue]);
-        if(isThirsty)
-        {
-          analogWrite(Thirsty, fadeCor[fadeValue]);
-        }
-        delay(40);
       }
+      if(isThirsty)
+      {
+        analogWrite(Thirsty, fadeCor[fadeValue]);
+      }
+      delay(40);
     }
-    else
-    {
-        // Balance delay
-        delay(40*2*COR_LENGTH);
-    }
+
   }
   else
   {
