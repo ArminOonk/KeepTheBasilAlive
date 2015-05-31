@@ -49,26 +49,32 @@ void CheckMoisture()
   
   if(moist > StartPump)
   {
-    //analogWrite(Thirsty, 255);
     isThirsty = true;
-    // Do not start pumping the first 5 minutes
-    if(millis() > PumpInitTime && FirstPump)
-    {
-      FirstPump = false;
-      PumpOn();
-    }
-    
-    if(millis() > (LastPumpTime + PumpTimeout) )
-    {
-      // Start pump
-      PumpOn();
-    }  
   }
   else
   {
-    //analogWrite(Thirsty, 0);
     isThirsty = false;
   }
+  
+  // Do not start pumping the first 5 minutes
+  if((millis() > PumpInitTime) && FirstPump && isThirsty)
+  {
+    FirstPump = false;
+    PumpOn();
+  }
+  
+  if(millis() > (LastPumpTime + PumpTimeout) )
+  {
+    if(isThirsty)
+    {
+      // Start pump
+      PumpOn();
+    }
+    else
+    {
+      LastPumpTime = millis();
+    }
+  }  
 }
 
 
@@ -109,7 +115,6 @@ void loop()
       PumpManual = false;
     }
     
-    
     // Button Led fading (Show alive)
     digitalWrite(OnboardLed, HIGH);
     bool showFade = (fadeCnt++%5 == 0);
@@ -126,8 +131,7 @@ void loop()
       }
       delay(40);
     }
-  
-    // fade out from max to min in increments of 5 points:
+
     digitalWrite(OnboardLed, LOW);
     for (int fadeValue = COR_LENGTH-1 ; fadeValue >= 0; fadeValue--) 
     {
