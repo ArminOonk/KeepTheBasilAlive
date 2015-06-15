@@ -23,7 +23,7 @@ Led Button 	| 3					| PWM
 Led1		| 4					| PWM
 Led2		| 6					| PWM
 Led3		| 9 				| PWM
-Moisture sensor	| A0			| Analog
+Moisture sensor	| 16			| touchRead
 Potentiometer	| A1			| Analog
 Waterlevel 		| A3			| Analog/Touch
 Leak detect		| A4 			| Analog
