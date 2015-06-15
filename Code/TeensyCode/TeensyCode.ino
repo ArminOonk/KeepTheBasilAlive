@@ -10,13 +10,13 @@ int PumpPin = 10;
 unsigned PumpTimeout = 60*60*1000; // 1 Hour
 unsigned PumpInitTime = 5*60*1000;
 bool FirstPump = true;
-unsigned PumpTime = 20*1000; // Pump for 20 seconds
+unsigned PumpTime = 10*1000; // Pump for 10 seconds
 bool isPumpOn = false;
 bool PumpManual = false;
 
-// Moisture measurement not connected --> >1000
-// Higher is drieer
-int StartPump = 400;
+
+// Higher is wetter
+int StartPump = 2900;
 unsigned LastPumpTime = 0;
 
 void PumpOn()
@@ -43,36 +43,32 @@ void PumpOff()
 bool isThirsty = false;
 void CheckMoisture()
 {
-  int moist = analogRead(A0);
-  Serial.print("Moisture: ");
-  Serial.println(moist);
+  //int moist = analogRead(A0);
+  int moist = touchRead(16);
+  Serial.println("Moisture: " + String(moist) + " trigger @<: " + String(StartPump));
   
-  if(moist > StartPump)
-  {
-    isThirsty = true;
-  }
-  else
-  {
-    isThirsty = false;
-  }
+  isThirsty = (moist < StartPump);
   
   // Do not start pumping the first 5 minutes
-  if((millis() > PumpInitTime) && FirstPump && isThirsty)
+  if((millis() > PumpInitTime))
   {
-    FirstPump = false;
-    PumpOn();
-  }
-  
-  if(millis() > (LastPumpTime + PumpTimeout) )
-  {
-    if(isThirsty)
+    if(FirstPump && isThirsty)
     {
-      // Start pump
+      FirstPump = false;
       PumpOn();
     }
-    else
+    
+    if(millis() > (LastPumpTime + PumpTimeout) )
     {
-      LastPumpTime = millis();
+      if(isThirsty)
+      {
+        // Start pump
+        PumpOn();
+      }
+      else
+      {
+        LastPumpTime = millis();
+      }
     }
   }  
 }
