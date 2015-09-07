@@ -1,8 +1,7 @@
 #include <OneWire.h>
-
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
-#include <OneWire.h>
+#include "private.h"
 
 OneWire  ds(2);  // on pin D4 LoLin board (a 4.7K resistor is necessary)
 
@@ -12,6 +11,11 @@ const char *password = "AAECUPUK";
 byte addr[8];
 bool type_s = false;
 bool ds18b20Found = false;
+
+// #define THINGSPEAK_KEY ABCDEFGH
+char host[] = "api.thingspeak.com";
+String GET = "/update?api_key=" + String(THINGSPEAK_KEY) + "&field1=";
+
 float getTemperature()
 {
   ds.reset();
@@ -28,13 +32,13 @@ float getTemperature()
   byte data[12];
   for (int i = 0; i < 9; i++) {           // we need 9 bytes
     data[i] = ds.read();
-    Serial.print(data[i], HEX);
-    Serial.print(" ");
+    //Serial.print(data[i], HEX);
+    //Serial.print(" ");
   }
 
-  Serial.print(" CRC=");
-  Serial.print(OneWire::crc8(data, 8), HEX);
-  Serial.println();
+  //Serial.print(" CRC=");
+  //Serial.print(OneWire::crc8(data, 8), HEX);
+  //Serial.println();
 
   int16_t raw = (data[1] << 8) | data[0];
 
@@ -122,11 +126,53 @@ void setup() {
 }
 
 int value = 0;
+long nextTimeReport = 0;
+
+void SendThingspeak(float temperature){
+  Serial.print("connecting to ");
+  Serial.println(host);
+    
+  WiFiClient client;
+  const int httpPort = 80;
+  if (client.connect(host, httpPort)) 
+  {
+    String url = GET + String(temperature);
+    url += "&field2=" + String(0.001*millis());
+    Serial.print("Requesting URL: ");
+    Serial.println(url);
+
+    client.print(String("GET ") + url + " HTTP/1.1\r\n" +
+               "Host: " + host + "\r\n" + 
+               "Connection: close\r\n\r\n");
+    delay(10);
+    // Read all the lines of the reply from server and print them to Serial
+      while(client.available()){
+        String line = client.readStringUntil('\r');
+        Serial.print(line);
+        yield();
+      }
+      
+      Serial.println();
+      Serial.println("closing connection");
+
+      nextTimeReport = millis() + 60*1000;
+    
+  } else {
+    Serial.println("connection failed");
+  }
+}
 
 void loop() {
   if(ds18b20Found) {
     float temperature = getTemperature();
+    yield();
+
+    if(millis() > nextTimeReport)
+    {
+      SendThingspeak(temperature);
+    }
     Serial.println("Temperature = " + String(temperature));
+  
   }
   Serial.println("Count: " + String(value));
   value++;

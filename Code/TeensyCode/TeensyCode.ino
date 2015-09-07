@@ -16,7 +16,7 @@ bool PumpManual = false;
 
 
 // Higher is wetter
-int StartPump = 2900;
+int StartPump = 11000;
 unsigned LastPumpTime = 0;
 
 void PumpOn()
