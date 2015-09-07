@@ -4,7 +4,7 @@
 #include <WiFiClient.h>
 #include <OneWire.h>
 
-OneWire  ds(2);  // on pin 2 (a 4.7K resistor is necessary)
+OneWire  ds(2);  // on pin D4 LoLin board (a 4.7K resistor is necessary)
 
 const char *ssid = "tv";
 const char *password = "AAECUPUK";
