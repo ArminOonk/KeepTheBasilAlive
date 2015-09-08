@@ -5,9 +5,6 @@
 
 OneWire  ds(2);  // on pin D4 LoLin board (a 4.7K resistor is necessary)
 
-const char *ssid = "tv";
-const char *password = "AAECUPUK";
-
 byte addr[8];
 bool type_s = false;
 bool ds18b20Found = false;
@@ -15,60 +12,25 @@ bool ds18b20Found = false;
 // #define THINGSPEAK_KEY ABCDEFGH
 char host[] = "api.thingspeak.com";
 String GET = "/update?api_key=" + String(THINGSPEAK_KEY) + "&field1=";
-
-float getTemperature()
-{
-  ds.reset();
-  ds.select(addr);
-  ds.write(0x44, 1);        // start conversion, with parasite power on at the end
-  
-  delay(1000);     // maybe 750ms is enough, maybe not
-  // we might do a ds.depower() here, but the reset will take care of it.
-  
-  ds.reset();
-  ds.select(addr);    
-  ds.write(0xBE);         // Read Scratchpad
-
-  byte data[12];
-  for (int i = 0; i < 9; i++) {           // we need 9 bytes
-    data[i] = ds.read();
-    //Serial.print(data[i], HEX);
-    //Serial.print(" ");
-  }
-
-  //Serial.print(" CRC=");
-  //Serial.print(OneWire::crc8(data, 8), HEX);
-  //Serial.println();
-
-  int16_t raw = (data[1] << 8) | data[0];
-
-  if (type_s) {
-    raw = raw << 3; // 9 bit resolution default
-    if (data[7] == 0x10) {
-      // "count remain" gives full 12 bit resolution
-      raw = (raw & 0xFFF0) + 12 - data[6];
-    }
-  } else {
-    byte cfg = (data[4] & 0x60);
-    // at lower res, the low bits are undefined, so let's zero them
-    if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
-    else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
-    else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
-    //// default is 12 bit resolution, 750 ms conversion time
-  }
-  float celsius = (float)raw / 16.0;
-
-  return celsius;
-}
+const int updateTimeout = 5*60*1000; // Thingspeak update rate
+const int rebootTimeout = 1000*60*60*6;
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
   delay(10);
-  Serial.println();
-  Serial.println();
+  Serial.println("                    ");
+  Serial.println("                    ");
+  delay(10);
+  
   Serial.print("Connecting to ");
   Serial.println(ssid);
+  delay(10);
+  
+  Serial.println("ESP ID: " + String(ESP.getChipId()));
+  delay(10);
+  Serial.println("sizeof(int): " + String(sizeof(int)));
+  delay(10);
   
   WiFi.begin(ssid, password);
   
@@ -79,55 +41,17 @@ void setup() {
 
   Serial.println("");
   Serial.println("WiFi connected");  
-  Serial.println("IP address: ");
+  Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  // Get ds18b20 temperature sensor
-  if ( !ds.search(addr)) {
-    Serial.println("No more addresses.");
-    Serial.println();
-    ds.reset_search();
-    delay(250);
-  }
+  initTemperature();
 
-  Serial.print("ROM =");
-  for(int i = 0; i < 8; i++) {
-    Serial.write(' ');
-    Serial.print(addr[i], HEX);
-  }
-
-  if (OneWire::crc8(addr, 7) != addr[7]) {
-      Serial.println("CRC is not valid!");
-      return;
-  }
-  Serial.println();
-
-  // the first ROM byte indicates which chip
-  switch (addr[0]) {
-    case 0x10:
-      Serial.println("  Chip = DS18S20");  // or old DS1820
-      type_s = true;
-      ds18b20Found = true;
-      break;
-    case 0x28:
-      Serial.println("  Chip = DS18B20");
-      type_s = false;
-      ds18b20Found = true;
-      break;
-    case 0x22:
-      Serial.println("  Chip = DS1822");
-      type_s = false;
-      ds18b20Found = true;
-      break;
-    default:
-      Serial.println("Device is not a DS18x20 family device.");
-      return;
-  }
+  ESP.wdtEnable(0);
 }
 
 int value = 0;
 long nextTimeReport = 0;
-
+long lastTimeReport = 0;
 void SendThingspeak(float temperature){
   Serial.print("connecting to ");
   Serial.println(host);
@@ -146,21 +70,36 @@ void SendThingspeak(float temperature){
                "Connection: close\r\n\r\n");
     delay(10);
     // Read all the lines of the reply from server and print them to Serial
-      while(client.available()){
-        String line = client.readStringUntil('\r');
-        Serial.print(line);
-        yield();
+    int lineNr = 0;
+    while(client.available()){
+      String line = client.readStringUntil('\r');
+      line.trim();
+      
+      if(line.startsWith("Status: ")) {
+        String statusCode = line.substring(8,12);
+        if(statusCode.toInt() == 200) {
+          Serial.println("Data received");
+          lastTimeReport = millis();
+        }
       }
+        
+      Serial.println("#" + String(lineNr) + ": " + line);
+      lineNr++;
+      yield();
+    }
       
       Serial.println();
       Serial.println("closing connection");
 
-      nextTimeReport = millis() + 60*1000;
+      nextTimeReport = millis() + updateTimeout;
     
   } else {
     Serial.println("connection failed");
   }
 }
+
+int lastLoopTime = 0;
+const int loopTimeout = 1000;
 
 void loop() {
   if(ds18b20Found) {
@@ -169,12 +108,35 @@ void loop() {
 
     if(millis() > nextTimeReport)
     {
+      if(millis() > rebootTimeout){
+        Serial.println("Restart every 6 hours -> Restarting");
+        ESP.restart();
+      }
+      
+      if(WiFi.status() != WL_CONNECTED) {
+        Serial.println("Wifi not connected -> Restarting");
+        ESP.restart();
+      }
+      
       SendThingspeak(temperature);
     }
-    Serial.println("Temperature = " + String(temperature));
+    Serial.println(String(value) + ": Temperature = " + String(temperature));
   
+  } else {
+    Serial.println("Count: " + String(value));
   }
-  Serial.println("Count: " + String(value));
   value++;
-  delay(1000);
+
+  if(millis() > (lastTimeReport + 2*updateTimeout)) {
+    Serial.println("No server response -> Restarting");
+    ESP.restart();
+  }
+
+  int dt = (lastLoopTime+loopTimeout)-millis();
+  if(dt <= 0) {
+    dt = 1;
+  }
+  lastLoopTime = millis();
+  delay(dt);
 }
+
