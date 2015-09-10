@@ -1,9 +1,10 @@
 #include <OneWire.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
+#include <Wire.h>
 #include "private.h"
 
-OneWire  ds(2);  // on pin D4 LoLin board (a 4.7K resistor is necessary)
+OneWire  ds(5);  // on pin D4 LoLin board (a 4.7K resistor is necessary)
 
 byte addr[8];
 bool type_s = false;
@@ -12,7 +13,7 @@ bool ds18b20Found = false;
 // #define THINGSPEAK_KEY ABCDEFGH
 char host[] = "api.thingspeak.com";
 String GET = "/update?api_key=" + String(THINGSPEAK_KEY) + "&field1=";
-const int updateTimeout = 5*60*1000; // Thingspeak update rate
+const int updateTimeout = 15*60*1000; // Thingspeak update rate
 const int rebootTimeout = 1000*60*60*6;
 
 void setup() {
@@ -47,6 +48,8 @@ void setup() {
   initTemperature();
 
   ESP.wdtEnable(0);
+  Wire.begin(2, 14);
+  resetChirp(); //reset
 }
 
 int value = 0;
@@ -106,6 +109,18 @@ void loop() {
     float temperature = getTemperature();
     yield();
 
+    unsigned int chirpCapacitance = readCapacitance();
+    yield();
+    unsigned int chirpTemperature = readChirpTemperature();
+    yield();
+    unsigned int chirpLight = readLight();
+    yield();
+
+    Serial.print("Chirp> ");
+    Serial.print("Capacitance: " + String(chirpCapacitance) + " ");
+    Serial.print("Temperature: " + String(chirpTemperature) + " ");
+    Serial.println("Light: " + String(chirpLight));
+    
     if(millis() > nextTimeReport)
     {
       if(millis() > rebootTimeout){
