@@ -12,6 +12,7 @@ unsigned int readChirpTemperature() {
 
 unsigned int readLight(){
    writeI2CRegister8bit(0x20, 3);
+   delay(20);
    return readI2CRegister16bit(0x20, 4);
 }
 
@@ -31,3 +32,15 @@ unsigned int readI2CRegister16bit(int addr, int reg) {
   t = t | Wire.read();
   return t;
 }
+
+void readAllChirp(float &temperature, unsigned int &chirpCapacitance, unsigned int &chirpTemperature, unsigned int &chirpLight){
+    temperature = getTemperature();
+    yield();
+    chirpCapacitance = readCapacitance();
+    yield();
+    chirpTemperature = readChirpTemperature();
+    yield();
+    chirpLight = readLight();
+    yield();
+}
+

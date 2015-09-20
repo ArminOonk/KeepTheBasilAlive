@@ -1,13 +1,21 @@
 #include <OneWire.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
+#include <ESP8266mDNS.h>
 #include <Wire.h>
 #include "private.h"
 
-OneWire  ds(5);  // on pin D4 LoLin board (a 4.7K resistor is necessary)
+// OTA, mdns
+String myHostname = "";
+String uniqueID;// HEX string 
+const uint16_t aport = 8266;
 
-byte addr[8];
-bool type_s = false;
+WiFiServer TelnetServer(aport);
+WiFiClient Telnet;
+WiFiUDP OTA;
+
+// Temperature
+OneWire  ds(5);  // on pin D4 LoLin board 
 bool ds18b20Found = false;
 
 // #define THINGSPEAK_KEY ABCDEFGH
@@ -20,17 +28,13 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
   delay(10);
-  Serial.println("                    ");
-  Serial.println("                    ");
-  delay(10);
-  
+
+  // Setting up OTA
+  uniqueID = getUniqueID();
+  myHostname = "chirp-"+uniqueID;
+ 
   Serial.print("Connecting to ");
   Serial.println(ssid);
-  delay(10);
-  
-  Serial.println("ESP ID: " + String(ESP.getChipId()));
-  delay(10);
-  Serial.println("sizeof(int): " + String(sizeof(int)));
   delay(10);
   
   WiFi.begin(ssid, password);
@@ -39,12 +43,15 @@ void setup() {
     delay(500);
     Serial.print(".");
   }
+  systemInformation();
 
-  Serial.println("");
-  Serial.println("WiFi connected");  
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-
+  // Start OTA
+  MDNS.begin(myHostname.c_str());
+  MDNS.addService("arduino", "tcp", aport);
+  OTA.begin(aport);
+  TelnetServer.begin();
+  TelnetServer.setNoDelay(true);
+    
   initTemperature();
 
   ESP.wdtEnable(0);
@@ -55,9 +62,8 @@ void setup() {
 int value = 0;
 long nextTimeReport = 0;
 long lastTimeReport = 0;
-void SendThingspeak(float temperature){
-  Serial.print("connecting to ");
-  Serial.println(host);
+void SendThingspeak(float temperature, float capacitance, float chirpTemp, float light){
+  printDebug("connecting to " + String(host));
     
   WiFiClient client;
   const int httpPort = 80;
@@ -65,9 +71,11 @@ void SendThingspeak(float temperature){
   {
     String url = GET + String(temperature);
     url += "&field2=" + String(0.001*millis());
-    Serial.print("Requesting URL: ");
-    Serial.println(url);
-
+    url += "&field3=" + String(capacitance);
+    url += "&field4=" + String(chirpTemp);
+    url += "&field5=" + String(light);
+    
+    printDebug("Requesting URL: " + String(url));
     client.print(String("GET ") + url + " HTTP/1.1\r\n" +
                "Host: " + host + "\r\n" + 
                "Connection: close\r\n\r\n");
@@ -81,7 +89,7 @@ void SendThingspeak(float temperature){
       if(line.startsWith("Status: ")) {
         String statusCode = line.substring(8,12);
         if(statusCode.toInt() == 200) {
-          Serial.println("Data received");
+          printDebug("Data received");
           lastTimeReport = millis();
         }
       }
@@ -97,61 +105,56 @@ void SendThingspeak(float temperature){
       nextTimeReport = millis() + updateTimeout;
     
   } else {
-    Serial.println("connection failed");
+    printDebug("connection failed");
   }
 }
 
 int lastLoopTime = 0;
 const int loopTimeout = 1000;
-
+float temperature;
+unsigned int chirpCapacitance;
+unsigned int chirpTemperature;
+unsigned int chirpLight;
+      
 void loop() {
-  if(ds18b20Found) {
-    float temperature = getTemperature();
-    yield();
-
-    unsigned int chirpCapacitance = readCapacitance();
-    yield();
-    unsigned int chirpTemperature = readChirpTemperature();
-    yield();
-    unsigned int chirpLight = readLight();
-    yield();
-
-    Serial.print("Chirp> ");
-    Serial.print("Capacitance: " + String(chirpCapacitance) + " ");
-    Serial.print("Temperature: " + String(chirpTemperature) + " ");
-    Serial.println("Light: " + String(chirpLight));
+  if(millis() - lastLoopTime > loopTimeout) {
+    lastLoopTime = millis();
     
-    if(millis() > nextTimeReport)
-    {
-      if(millis() > rebootTimeout){
-        Serial.println("Restart every 6 hours -> Restarting");
-        ESP.restart();
-      }
-      
-      if(WiFi.status() != WL_CONNECTED) {
-        Serial.println("Wifi not connected -> Restarting");
-        ESP.restart();
-      }
-      
-      SendThingspeak(temperature);
-    }
-    Serial.println(String(value) + ": Temperature = " + String(temperature));
-  
-  } else {
-    Serial.println("Count: " + String(value));
-  }
-  value++;
+    if(ds18b20Found) {
+      readAllChirp(temperature, chirpCapacitance, chirpTemperature, chirpLight);
 
-  if(millis() > (lastTimeReport + 2*updateTimeout)) {
-    Serial.println("No server response -> Restarting");
+      String report = "Chirp> Capacitance: " + String(chirpCapacitance) + " Temperature: " + String(chirpTemperature) + " Light: " + String(chirpLight);
+      printDebug(report);
+      
+      if(millis() > nextTimeReport)
+      {
+        if(WiFi.status() != WL_CONNECTED) {
+          Serial.println("Wifi not connected -> Restarting");
+          ESP.restart();
+        }
+        
+        SendThingspeak(temperature, chirpCapacitance, chirpTemperature, chirpLight);
+      }
+      printDebug(String(value) + ": Temperature = " + String(temperature));
+    
+    } else {
+      printDebug("Count: " + String(value));
+    }
+    value++;
+  
+    if(millis() > (lastTimeReport + 2*updateTimeout)) {
+      Serial.println("No server response -> Restarting");
+      ESP.restart();
+    }
+  }
+  
+  checkOTA();
+
+  if(millis() > rebootTimeout){
+    Serial.println("Restart every 6 hours -> Restarting");
     ESP.restart();
   }
-
-  int dt = (lastLoopTime+loopTimeout)-millis();
-  if(dt <= 0) {
-    dt = 1;
-  }
-  lastLoopTime = millis();
-  delay(dt);
+  
+  delay(1);
 }
 

@@ -1,3 +1,7 @@
+byte addr[8];
+bool type_s = false;
+
+
 void initTemperature() {
   // Get ds18b20 temperature sensor
   if ( !ds.search(addr)) {
