@@ -4,7 +4,14 @@
 #include <ESP8266mDNS.h>
 #include <Wire.h>
 #include "private.h"
-
+////////////////////////////////////////
+// Chirp capacitance < 600 is dry <500 is almost dead
+//
+//
+//
+//
+//
+////////////////////////////////////////
 // OTA, mdns
 String myHostname = "";
 String uniqueID;// HEX string 
