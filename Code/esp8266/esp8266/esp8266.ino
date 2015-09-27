@@ -79,7 +79,7 @@ void SendThingspeak(float temperature, float capacitance, float chirpTemp, float
     String url = GET + String(temperature);
     url += "&field2=" + String(0.001*millis());
     url += "&field3=" + String(capacitance);
-    url += "&field4=" + String(chirpTemp);
+    url += "&field4=" + String(0.1*chirpTemp);
     url += "&field5=" + String(light);
     
     printDebug("Requesting URL: " + String(url));

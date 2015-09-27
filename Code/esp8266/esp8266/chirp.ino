@@ -1,3 +1,4 @@
+// https://www.tindie.com/products/miceuz/i2c-soil-moisture-sensor/
 void resetChirp() {
   writeI2CRegister8bit(0x20, 6); //reset  
 }
@@ -12,7 +13,7 @@ unsigned int readChirpTemperature() {
 
 unsigned int readLight(){
    writeI2CRegister8bit(0x20, 3);
-   delay(20);
+   delay(3000); // Should wait 3 seconds, not nice doing a busy wait but got nothing else to do
    return readI2CRegister16bit(0x20, 4);
 }
 
